@@ -180,7 +180,8 @@ async fn access_website(stack: Stack<'_>, tls_seed: u64) {
     let mut http_req = client
         .request(
             reqwless::request::Method::GET,
-            "https://jsonplaceholder.typicode.com/posts/1",
+            // "https://jsonplaceholder.typicode.com/posts/1",
+            "http://192.168.1.110:8000",
         )
         .await
         .unwrap();
