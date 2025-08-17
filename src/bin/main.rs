@@ -23,8 +23,37 @@ use esp_wifi::wifi::{self, WifiController, WifiDevice, WifiEvent, WifiState};
 use esp_wifi::EspWifiController;
 use reqwless::client::{HttpClient, TlsConfig};
 
+use bevy_ecs::prelude::*;
+use core::fmt::Write;
+use embedded_graphics::pixelcolor::PixelColor;
+use embedded_graphics::{
+    mono_font::{ascii::FONT_8X13, MonoTextStyle},
+    pixelcolor::Rgb565,
+    prelude::*,
+    primitives::{PrimitiveStyle, Rectangle},
+    text::Text,
+    Drawable,
+};
+use embedded_graphics_framebuf::backends::FrameBufferBackend;
+use embedded_graphics_framebuf::FrameBuf;
+use embedded_hal::delay::DelayNs;
+use embedded_hal_bus::spi::ExclusiveDevice;
+use esp_hal::delay::Delay;
+use esp_hal::dma::{DmaRxBuf, DmaTxBuf};
+use esp_hal::dma_buffers;
+use esp_hal::{
+    gpio::{Level, Output, OutputConfig},
+    main,
+    spi::master::{Spi, SpiDmaBus},
+    time::Rate,
+    Blocking,
+};
+use mipidsi::{interface::SpiInterface, options::ColorInversion};
+use mipidsi::{models::ST7789, Builder}; // includes NonSend and NonSendMut
+
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    println!("Panic: {}", _info);
     loop {}
 }
 
@@ -39,6 +68,23 @@ macro_rules! mk_static {
         x
     }};
 }
+
+// --- Type Alias for the Concrete Display ---
+// Use the DMA-enabled SPI bus type.
+type MyDisplay = mipidsi::Display<
+    SpiInterface<
+        'static,
+        ExclusiveDevice<SpiDmaBus<'static, Blocking>, Output<'static>, Delay>,
+        Output<'static>,
+    >,
+    ST7789,
+    Output<'static>,
+>;
+
+// --- LCD Resolution and FrameBuffer Type Aliases ---
+const LCD_H_RES: usize = 206;
+const LCD_V_RES: usize = 320;
+const LCD_BUFFER_SIZE: usize = LCD_H_RES * LCD_V_RES;
 
 const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
@@ -187,7 +233,8 @@ async fn access_website(stack: Stack<'_>, tls_seed: u64) -> String {
         .request(
             reqwless::request::Method::GET,
             // "https://jsonplaceholder.typicode.com/posts/1",
-            "http://192.168.1.110:8000",
+            // "http://192.168.1.110:8000",
+            "https://gioyingtec.com/fortune/english",
         )
         .await
         .unwrap();
