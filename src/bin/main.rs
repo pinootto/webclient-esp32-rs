@@ -6,6 +6,7 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::string::{String, ToString};
 use defmt::info;
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
@@ -89,15 +90,20 @@ async fn main(spawner: Spawner) {
 
     wait_for_connection(stack).await;
 
-    access_website(stack, tls_seed).await;
+    let content = access_website(stack, tls_seed).await;
+    println!("{content}");
 
-    let mut n = 1;
-    loop {
-        Timer::after(Duration::from_secs(1)).await;
-        info!("loop {}", n);
-        access_website(stack, tls_seed).await;
-        n += 1;
-    }
+    //todo
+    // get the response body and show it on the display
+    //
+
+    // let mut n = 1;
+    // loop {
+    //     Timer::after(Duration::from_secs(1)).await;
+    //     info!("loop {}", n);
+    //     access_website(stack, tls_seed).await;
+    //     n += 1;
+    // }
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.1/examples/src/bin
 }
 
@@ -161,7 +167,7 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
-async fn access_website(stack: Stack<'_>, tls_seed: u64) {
+async fn access_website(stack: Stack<'_>, tls_seed: u64) -> String {
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
     let dns = DnsSocket::new(stack);
@@ -188,8 +194,10 @@ async fn access_website(stack: Stack<'_>, tls_seed: u64) {
     let response = http_req.send(&mut buffer).await.unwrap();
 
     info!("Got response");
-    let res = response.body().read_to_end().await.unwrap();
+    let response_body = response.body().read_to_end().await.unwrap();
 
-    let content = core::str::from_utf8(res).unwrap();
-    println!("{}", content);
+    let content = core::str::from_utf8(response_body).unwrap();
+    // println!("{}", content);
+
+    content.to_string()
 }
